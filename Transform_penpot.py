@@ -10,9 +10,9 @@ from langchain.schema import Document
 
 # Load environment variables and API key
 load_dotenv()
-my_groq_api_key = "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"
+# my_groq_api_key = "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"
+my_groq_api_key = st.secrets["my_groq_api_key"]
 
-st.write(my_groq_api_key)
 if not my_groq_api_key:
     raise ValueError("Groq API key not found. Please set it in .env or as an environment variable.")
 
