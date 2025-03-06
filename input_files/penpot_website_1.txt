@@ -1,0 +1,5 @@
+Ensure the following elements are present in the transformed output:
+- A navigation bar with links labeled "Home", "Contact", "Service", and "About".
+- A header that displays the text "Welcome To UiAutomation".
+- A section titled "Convert design to code".
+- An interactive area containing a "Try It Now" checkbox and two buttons labeled "Learn More" and "Get Now

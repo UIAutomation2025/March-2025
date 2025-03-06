@@ -2,7 +2,8 @@ streamlit
 langchain
 faiss-cpu
 langchain-community
-langchain-groq
 python-dotenv
-sentence-transformers
+langchain-text-splitters
+sentence_transformers
 langchain_huggingface
+langchain_groq

@@ -10,9 +10,8 @@ from langchain.schema import Document
 
 # Load environment variables and API key
 load_dotenv()
-# my_groq_api_key = "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"
+# my_groq_api_key = os.getenv("GROQ_API_KEY")
 my_groq_api_key = st.secrets["my_groq_api_key"]
-
 if not my_groq_api_key:
     raise ValueError("Groq API key not found. Please set it in .env or as an environment variable.")
 
@@ -62,55 +61,51 @@ def retrieve_design_standard(input_content):
     docs = vectorstore.similarity_search(input_content, k=3)
     return "\n".join(doc.page_content for doc in docs)
 
+def load_bootstrap_css():
+    """Load Bootstrap CSS from design_spec directory."""
+    bootstrap_css_path = os.path.join(DESIGN_SPEC_DIR, "bootstrap.min.css")
+    if os.path.exists(bootstrap_css_path):
+        with open(bootstrap_css_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
+bootstrap_css = load_bootstrap_css()
+
+def load_ui_instructions(filename):
+    """Loads UI-specific instructions from a text file matching the input filename."""
+    instruction_file = os.path.join(INPUT_DIR, f"{os.path.splitext(filename)[0]}.txt")
+    
+    if os.path.exists(instruction_file):
+        with open(instruction_file, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    else:
+        return "No specific UI instructions found. Proceed with standard transformation."
+
 # Initialize the LLM
 llm = ChatGroq(groq_api_key=my_groq_api_key, model_name="gemma2-9b-it")
 
-# Optimized system prompt for component generation
-system_prompt = (
-    "You are a UI assistant that generates HTML components strictly following the design standard.\n\n"
-    "**Rules:**\n"
-    "- Use only the classes and styles defined in the design standard (no external styles).\n"
-    "- Provide only the <body> content (omit <html>, <head>).\n"
-    "- Keep output minimal while maintaining the correct structure.\n\n"
-    "**Relevant Design Standard Styles:**\n{design_standard_retrieved}\n\n"
-    "**User Request:**\n{input}"
-)
 
-# System prompt for full website transformation
-common_system_prompt = """You are a UI transformation expert.
-Transform the provided Penpot-generated HTML into a single, self-contained HTML file that complies with Bootstrap 5 standards.
-Ensure that the transformed HTML:
-- Uses modern HTML5 best practices and a clean, semantic structure.
-- Includes a single local reference to Bootstrap 5 CSS in the <head>:
-  <link rel="stylesheet" href="bootstrap.min.css">
-- Embeds only minimal custom CSS inside a <style> tag.
-- Removes extraneous or redundant inline styles.
-- Produces a visually structured and responsive layout.
-- Adheres to the design standards provided.
-"""
+unified_prompt_template = """You are a UI transformation assistant.
+Generate HTML strictly following the provided design standard.
 
-ui_specific_instructions = """
-Ensure the following elements are present in the transformed output:
-- A navigation bar with links labeled "Home", "Contact", "Service", and "About".
-- A header that displays the text "Welcome To UiAutomation".
-- A section titled "Convert design to code".
-- An interactive area containing a "Try It Now" checkbox and two buttons labeled "Learn More" and "Get Now".
-"""
-
-final_system_prompt_template = """{common_prompt}
+### Rules:
+- Use only the classes and styles defined in the design standard (no external styles).
+- Provide only the <body> content (omit <html>, <head> unless specified).
+- Keep output minimal while maintaining the correct structure.
+- Ensure responsiveness and Bootstrap 5 compliance.
 
 ### Design Standard:
 {design_standard}
 
-### Additional UI Specifications:
+### UI-Specific Instructions:
 {ui_instructions}
 
-### Original Penpot HTML (truncated):
+### User Request:
 {input}
 
-### Output (Single Transformed HTML File):
+### Output:
 """
 
+    
 # ✅ Generate Bootstrap components
 def generate_components(generate_component_command):
     retrieved_docs = vectorstore.similarity_search(generate_component_command, k=2)
@@ -121,9 +116,10 @@ def generate_components(generate_component_command):
         for doc in retrieved_docs
     ])
 
-    # Format prompt
-    formatted_prompt = system_prompt.format(
-        design_standard_retrieved=design_standard_retrieved,
+    # Use the unified prompt for component generation
+    formatted_prompt = unified_prompt_template.format(
+        design_standard=design_standard_retrieved,
+        ui_instructions="Component should be simple, structured, and reusable.",
         input=generate_component_command
     )
 
@@ -138,6 +134,8 @@ def generate_components(generate_component_command):
     # Clean up response (remove markdown formatting)
     cleaned_response = response.replace("```html", "").replace("```", "").strip()
 
+
+    bootstrap_css = load_bootstrap_css()
     # Construct final HTML output
     final_html = f"""
     <!DOCTYPE html>
@@ -145,8 +143,9 @@ def generate_components(generate_component_command):
     <head>
         <meta charset='UTF-8'>
         <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-        <link rel='stylesheet' href='bootstrap.min.css'>
-        <script src='bootstrap.bundle.min.js'></script>
+       <style>
+            {bootstrap_css}  /* Embedded Bootstrap CSS */
+        </style>
         <title>Generated UI Component</title>
     </head>
     <body>
@@ -155,39 +154,70 @@ def generate_components(generate_component_command):
     </html>
     """
 
-    # Display generated component
-    st.subheader("Generated Bootstrap Component")
-    st.components.v1.html(final_html, height=500, scrolling=True)
-
     # Save output with "generate_" prefix
     output_file = os.path.join(OUTPUT_DIR, f"generate_{len(os.listdir(OUTPUT_DIR))}.html")
+    print(output_file)
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(final_html)
+
+    # Display transformed output
+    st.subheader("Generated Bootstrap Output")
+    st.components.v1.html(final_html, height=200, scrolling=True)
+    st.text_area("Generated HTML", final_html, height=600)
+   
+
 
 # ✅ Transform full website
 def transform_new_website(input_snippet, filename):
     design_standard = retrieve_design_standard(input_snippet)
+    # Load UI-specific instructions for the given file
+    ui_specific_instructions = load_ui_instructions(filename)
     
-    final_system_prompt = final_system_prompt_template.format(
-        common_prompt=common_system_prompt,
+    # Use the unified prompt for full transformation
+    formatted_prompt = unified_prompt_template.format(
         design_standard=design_standard,
         ui_instructions=ui_specific_instructions,
         input=input_snippet
     )
     
-    transformed_response = "".join(chunk.content for chunk in llm.stream(final_system_prompt)).strip()
+    # Get transformed HTML from LLM
+    transformed_response = "".join(chunk.content for chunk in llm.stream(formatted_prompt)).strip()
     
+    # Extract HTML content from markdown block if present
     match = re.search(r"```(?:html)?\n(.*?)```", transformed_response, re.DOTALL | re.IGNORECASE)
     if match:
         transformed_response = match.group(1).strip()
-    
+
+    # Load Bootstrap CSS and embed it inside the final HTML
+    bootstrap_css = load_bootstrap_css()
+    final_html = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            {bootstrap_css}  /* Embedded Bootstrap CSS */
+        </style>
+        <title>Transformed Website</title>
+    </head>
+    <body>
+        {transformed_response}
+    </body>
+    </html>
+    """
+
+    # Save the output file
     output_file_path = os.path.join(OUTPUT_DIR, f"transformed_{filename}")
     with open(output_file_path, "w", encoding="utf-8") as f:
-        f.write(transformed_response)
-    
-    # Display transformed output
+        f.write(final_html)
+  
+     # Display transformed output
     st.subheader("Transformed Bootstrap Output")
-    st.components.v1.html(transformed_response, height=500, scrolling=True)
+    st.components.v1.html(final_html, height=500, scrolling=True)
+    st.text_area("Generated HTML", final_html, height=600)
+   
+
 
 # ✅ Streamlit UI Part
 
