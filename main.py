@@ -10,8 +10,7 @@ from langchain.schema import Document
 
 # Load environment variables and API key
 load_dotenv()
-# my_groq_api_key = os.getenv("GROQ_API_KEY")
-my_groq_api_key = st.secrets["my_groq_api_key"]
+my_groq_api_key = os.getenv("GROQ_API_KEY")
 if not my_groq_api_key:
     raise ValueError("Groq API key not found. Please set it in .env or as an environment variable.")
 
@@ -68,7 +67,14 @@ def load_bootstrap_css():
         with open(bootstrap_css_path, "r", encoding="utf-8") as f:
             return f.read()
     return ""
-bootstrap_css = load_bootstrap_css()
+
+def load_bootstrap_js():
+    """Load Bootstrap JS from design_spec directory."""
+    bootstrap_js_path = os.path.join(DESIGN_SPEC_DIR, "bootstrap.bundle.min.js")
+    if os.path.exists(bootstrap_js_path):
+        with open(bootstrap_js_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
 
 def load_ui_instructions(filename):
     """Loads UI-specific instructions from a text file matching the input filename."""
@@ -190,6 +196,8 @@ def transform_new_website(input_snippet, filename):
 
     # Load Bootstrap CSS and embed it inside the final HTML
     bootstrap_css = load_bootstrap_css()
+    bootstrap_js = load_bootstrap_js()
+    
     final_html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -199,6 +207,9 @@ def transform_new_website(input_snippet, filename):
         <style>
             {bootstrap_css}  /* Embedded Bootstrap CSS */
         </style>
+        <script>
+            {bootstrap_js}  /* Embedded Bootstrap JS */
+        </script>
         <title>Transformed Website</title>
     </head>
     <body>
