@@ -1,0 +1,1 @@
+Component should be simple, structured, and reusable.
