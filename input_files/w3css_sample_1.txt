@@ -1,0 +1,27 @@
+# UI Transformation Instructions: Convert W3.CSS to Bootstrap 5
+
+## Navigation Bar
+- Replace `<ul>` and `<li>` elements with a Bootstrap `navbar` component.
+- Use `navbar-nav` for navigation links and `navbar-expand-lg` for responsiveness.
+- Wrap navigation inside a `<nav class="navbar navbar-expand-lg navbar-light bg-light">`.
+
+## Dropdown Menu
+- Convert `.dropdown` styling to Bootstrap’s dropdown component.
+- Use `dropdown-menu` and `dropdown-item` classes.
+- Add `data-bs-toggle="dropdown"` to enable Bootstrap’s JS functionality.
+
+## Radio Buttons
+- Wrap each radio input in a `form-check` div.
+- Use `form-check-input` for radio buttons and `form-check-label` for labels.
+
+## Button
+- Convert the submit button to a Bootstrap-styled button using `btn btn-primary`.
+
+## JavaScript
+- Remove the `myFunction()` script for dropdown handling.
+- Utilize Bootstrap’s built-in collapse feature for dynamic content.
+
+## General Rules
+- Remove W3.CSS class names and replace them with Bootstrap 5 equivalents.
+- Ensure the design remains responsive.
+- Avoid inline styles; use Bootstrap utility classes.

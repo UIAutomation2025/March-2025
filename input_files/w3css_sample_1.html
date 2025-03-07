@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.dropbtn {
+  background-color: #4CAF50;
+  color: white;
+  padding: 16px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.dropdown-content a:hover {background-color: #f1f1f1}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+.dropdown:hover .dropbtn {
+  background-color: #3e8e41;
+}
+ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  display: inline;
+}
+</style>
+</head>
+<body>
+ <p>Nav bar sample:</p>
+<ul>
+  <li><a href="#home">Home</a></li>
+  <li><a href="#news">News</a></li>
+  <li><a href="#contact">Contact</a></li>
+  <li><a href="#about">About</a></li>
+</ul>
+  <p>Drop dowm sample:</p>
+  <div class="dropdown">
+  <button class="dropbtn">Dropdown</button>
+  <div class="dropdown-content">
+  <a href="#">Link 1</a>
+  <a href="#">Link 2</a>
+  <a href="#">Link 3</a>
+  </div>
+</div>
+  
+  
+  <p>Radio Button sample:</p>
+  <input type="radio" id="age1" name="age" value="30">
+  <label for="age1">0 - 30</label><br>
+  <input type="radio" id="age2" name="age" value="60">
+  <label for="age2">31 - 60</label><br>  
+  <input type="radio" id="age3" name="age" value="100">
+  <label for="age3">61 - 100</label><br><br>
+  <input type="submit" value="Submit">
+</div>
+
+<script>
+function myFunction() {
+  var x = document.getElementById("Demo");
+  if (x.className.indexOf("w3-show") == -1) {
+    x.className += " w3-show";
+  } else { 
+    x.className = x.className.replace(" w3-show", "");
+  }
+}
+</script>
+
+</body>
+</html>
