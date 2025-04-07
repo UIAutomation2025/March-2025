@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Penpot Website - W3.CSS</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <style>
+    body {
+      background-color: #D3A3A3; /* Same Background Color */
+    }
+    .content-wrapper {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: flex-start;
+      min-height: 90vh;
+      padding-left: 100px; /* Left alignment */
+      text-align: left;
+    }
+    .btn-custom {
+      width: 220px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 16px;
+      margin-top: 15px;
+      display: inline-block;
+    }
+    .btn-learn-more {
+      background-color: #8B2A7B;
+      color: white;
+    }
+    .btn-get-now {
+      background-color: #A16262;
+      color: white;
+    }
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .checkbox-container input {
+      width: 18px;
+      height: 18px;
+    }
+    .nav-link {
+      color: white !important;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <div class="w3-bar w3-black w3-top w3-padding">
+    <div class="w3-right">
+      <a href="#" class="w3-bar-item nav-link">Home</a>
+      <a href="#" class="w3-bar-item nav-link">About</a>
+      <a href="#" class="w3-bar-item nav-link">Service</a>
+      <a href="#" class="w3-bar-item nav-link">Contact</a>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="w3-container content-wrapper w3-text-white" style="margin-top: 64px;">
+    <h1 class="w3-xxxlarge">Welcome to UIAutomation</h1>
+    <p class="w3-large w3-margin-top">Convert design to code</p>
+
+    <!-- Buttons -->
+    <a class="btn-custom btn-learn-more">Learn More</a>
+    <a class="btn-custom btn-get-now">Get Now</a>
+
+    <!-- Checkbox -->
+    <div class="checkbox-container">
+      <input type="checkbox" id="try-it-now">
+      <label for="try-it-now" class="w3-large">Try It Now</label>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="w3-center w3-padding w3-text-white">
+    <p>&copy; 2025 UIAutomation. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>
