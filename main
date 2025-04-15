@@ -1,0 +1,229 @@
+import streamlit as st
+import os
+import re
+import requests
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
+from langchain_text_splitters import RecursiveCharacterTextSplitter, HTMLSemanticPreservingSplitter
+from langchain.schema import Document
+
+# Load environment variables and API key
+load_dotenv()
+my_groq_api_key = os.getenv("GROQ_API_KEY")
+if not my_groq_api_key:
+    raise ValueError("Groq API key not found. Please set it in .env or as an environment variable.")
+
+# Define directories
+INPUT_DIR = "input_files"
+DESIGN_SPEC_DIR = "design_spec"
+OUTPUT_DIR = "output_files"
+FAISS_INDEX_PATH = "faiss_index"
+
+# Ensure output directory exists
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def read_files(directory, allowed_extensions={".html", ".css", ".js"}):
+    docs = []
+    for root, _, files in os.walk(directory):
+        for file in files:
+            ext = os.path.splitext(file)[-1].lower()
+            if ext in allowed_extensions:
+                file_path = os.path.join(root, file)
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                        docs.append(Document(page_content=content, metadata={"filename": file}))
+                except Exception as e:
+                    print(f"Error reading {file_path}: {e}")
+    return docs
+
+# Initialize embeddings
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+def load_or_create_faiss_index(docs):
+    if os.path.exists(FAISS_INDEX_PATH):
+        vectorstore = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
+    else:
+        split_docs = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200).split_documents(docs)
+        vectorstore = FAISS.from_documents(split_docs, embeddings)
+        vectorstore.save_local(FAISS_INDEX_PATH)
+    return vectorstore
+
+design_spec_docs = read_files(DESIGN_SPEC_DIR)
+vectorstore = load_or_create_faiss_index(design_spec_docs)
+
+def retrieve_design_standard(input_content):
+    docs = vectorstore.similarity_search(input_content, k=3)
+    return "\n".join(doc.page_content for doc in docs)
+
+def load_bootstrap_css():
+    bootstrap_css_path = os.path.join(DESIGN_SPEC_DIR, "bootstrap.min.css")
+    if os.path.exists(bootstrap_css_path):
+        with open(bootstrap_css_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
+
+def load_bootstrap_js():
+    bootstrap_js_path = os.path.join(DESIGN_SPEC_DIR, "bootstrap.bundle.min.js")
+    if os.path.exists(bootstrap_js_path):
+        with open(bootstrap_js_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
+
+def fetch_html_from_url(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.text
+    except Exception as e:
+        st.error(f"Failed to fetch HTML from URL: {e}")
+        return ""
+
+def extract_logical_chunks(html):
+    soup = BeautifulSoup(html, "html.parser")
+    chunks = []
+    for tag in soup.find_all(["header", "nav", "section", "form", "main", "footer", "article", "aside"]):
+        chunks.append(str(tag))
+    if not chunks and soup.body:
+        chunks.append(str(soup.body))
+    return chunks
+
+def merge_small_chunks(chunks, min_length=300):
+    merged = []
+    buffer = ""
+    for chunk in chunks:
+        if len(buffer) + len(chunk) < min_length:
+            buffer += "\n" + chunk
+        else:
+            if buffer:
+                merged.append(buffer)
+                buffer = ""
+            merged.append(chunk)
+    if buffer:
+        merged.append(buffer)
+    return merged
+
+def split_html_from_url(url):
+    html = fetch_html_from_url(url)
+    if not html:
+        return []
+    logical_chunks = extract_logical_chunks(html)
+    splitter = HTMLSemanticPreservingSplitter(chunk_size=2000, chunk_overlap=300, strip_whitespace=True)
+    semantic_chunks = []
+    for chunk in logical_chunks:
+        semantic_chunks.extend(splitter.split_text(chunk))
+    return merge_small_chunks(semantic_chunks)
+
+llm = ChatGroq(groq_api_key=my_groq_api_key, model_name="llama-3.3-70b-versatile")
+
+unified_prompt_template = """You are a UI transformation assistant.
+Generate HTML strictly following the provided design standard.
+
+### Rules:
+- Use only the classes and styles defined in the design standard (no external styles).
+- Provide only the <body> content (omit <html>, <head> unless specified).
+- Keep output minimal while maintaining the correct structure.
+- Ensure responsiveness and Bootstrap 5 compliance.
+
+### Design Standard:
+{design_standard}
+
+### UI-Specific Instructions:
+Component should be simple, structured, and reusable.
+
+### User Request:
+{input}
+
+### Output:
+"""
+
+def transform_chunk(chunk):
+    design_standard = retrieve_design_standard(chunk)
+    formatted_prompt = unified_prompt_template.format(
+        design_standard=design_standard,
+        input=chunk
+    )
+    response = "".join(c.content for c in llm.stream(formatted_prompt)).strip()
+    match = re.search(r"```(?:html)?\n(.*?)```", response, re.DOTALL | re.IGNORECASE)
+    if match:
+        response = match.group(1).strip()
+    return response
+
+def transform_url_html(url):
+    chunks = split_html_from_url(url)
+    transformed_chunks = [transform_chunk(chunk) for chunk in chunks]
+    bootstrap_css = load_bootstrap_css()
+    bootstrap_js = load_bootstrap_js()
+
+    final_html = f"""
+    <!DOCTYPE html>
+    <html lang=\"en\">
+    <head>
+        <meta charset=\"UTF-8\">
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+        <style>{bootstrap_css}</style>
+        <script>{bootstrap_js}</script>
+        <title>Transformed from URL</title>
+    </head>
+    <body>
+        {'\n'.join(transformed_chunks)}
+    </body>
+    </html>
+    """
+
+    output_file_path = os.path.join(OUTPUT_DIR, "transformed_from_url.html")
+    with open(output_file_path, "w", encoding="utf-8") as f:
+        f.write(final_html)
+
+    st.subheader("Transformed URL Output")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### Live Preview")
+        st.components.v1.html(final_html, height=500, scrolling=True)
+
+    with col2:
+        st.markdown("### Generated HTML")
+        st.text_area("Generated HTML", final_html, height=500)
+
+st.title("Transform to Bootstrap design")
+with st.sidebar:
+    option = st.radio("Select an option:", ["Generate Components", "Create Website", "Transform from URL"])
+
+if option == "Transform from URL":
+    st.subheader("Transform Website from URL")
+    input_url = st.text_input("Enter the full URL of the website")
+    if input_url and st.button("Transform from URL"):
+        with st.spinner("Fetching and transforming website..."):
+            transform_url_html(input_url)
+
+
+
+
+
+
+def extract_logical_chunks(html):
+    soup = BeautifulSoup(html, "html.parser")
+    chunks = []
+
+    # 1. Extract main semantic blocks
+    semantic_tags = ["header", "nav", "main", "section", "article", "form", "aside", "footer"]
+    for tag in soup.find_all(semantic_tags):
+        if tag and tag.get_text(strip=True):  # skip empty tags
+            chunks.append(str(tag))
+
+    # 2. Include interactive containers (like modal, div.card, div.container)
+    for div in soup.find_all("div"):
+        div_class = div.get("class", [])
+        if any(cls in div_class for cls in ["container", "card", "modal", "row", "col"]) and div.get_text(strip=True):
+            chunks.append(str(div))
+
+    # 3. Fallback to body if still nothing found
+    if not chunks and soup.body:
+        chunks.append(str(soup.body))
+
+    return chunks
+
