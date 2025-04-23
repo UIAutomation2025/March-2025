@@ -1,0 +1,53 @@
+# UI Transformation Guidelines: W3.CSS to Bootstrap 5
+
+## General Rules:
+- Convert all components from W3.CSS to Bootstrap 5 equivalents.
+- Preserve semantic HTML structure, including <section>, <header>, <nav>, <main>, <footer> when applicable.
+- Maintain consistent layout, spacing, and responsive behavior.
+- Maintain alignment of all components as per the input html
+- Do not add or generate any additional content like footers or social links.
+- Avoid inline styles unless needed to preserve unique visual cues (e.g., border-radius from W3 classes).
+
+## Navigation Bars:
+- Replace any W3.CSS navbars with Bootstrap's structure:
+  <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+- If a responsive or collapsible navbar is detected, use Bootstrap’s toggle mechanism properly.
+
+## Carousels:
+- Convert slideshows or rotating images into Bootstrap 5 carousels using the full component pattern.
+- Include indicators, captions, and navigation arrows as per Bootstrap standards.
+
+## Buttons:
+- Convert all buttons to bootstrap primary format with blue background preserving the alignment of the buttons as per the source html:
+  Bootstrap converion sample  <a class="btn btn-primary">...</a> or <button class="btn btn-primary">...</button>
+- Do not preserve W3.CSS color or background classes.
+- If rounded styles like w3-round, w3-round-large, w3-round-xxlarge are detected:
+  - Apply matching Bootstrap utility classes or inline styles: e.g., `style="border-radius: 0.5rem"`.
+
+## Lists & Badges:
+- Replace list indicators or custom badges with Bootstrap equivalents:
+  - Use `.list-group`, `.list-group-item`, `.badge.bg-danger`, etc.
+
+## Interactive Elements:
+- Preserve functionality of:
+  - Checkboxes
+  - Forms
+  - Text inputs
+  - Submit buttons
+- Maintain correct structure: labels should be properly linked with `for` and `id`.
+
+## Imagery:
+- Use Bootstrap's `.img-fluid` for all images to ensure responsiveness.
+- Preserve alt text and avoid hardcoded width/height unless absolutely necessary.
+
+## Layout:
+- Prefer using Bootstrap’s `.container`, `.row`, `.col-*` grid layout over W3’s grid.
+- Ensure nested rows/columns are semantically valid (e.g., row > col-md-4 > content).
+
+## Typography:
+- Replace W3.CSS typography classes with appropriate Bootstrap ones:
+  - Headings: <h1> to <h6>
+  - Subtext: `.text-muted`, `.text-center`, etc.
+
+## Body Background:
+- Always set the body background to white unless overridden by external theme.
