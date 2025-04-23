@@ -213,8 +213,8 @@ def extract_body_only(doc: Document):
     soup = BeautifulSoup(doc.page_content, "html.parser")
     body = soup.body
     if body:
-        #return Document(page_content=str(body), metadata=doc.metadata)
-        return body
+        return Document(page_content=str(body), metadata=doc.metadata)
+        #return body
     else:
         st.warning("No <body> found in the page.")
         return None
@@ -289,6 +289,30 @@ def split_logically_ordered(body_tag: Tag):
     flush_chunk()
     return logical_chunks
 
+def extract_body_chunks_new(body):
+    """
+    Extracts top-level chunks from the body using start and end tags of each direct child.
+    This method does not rely on specific tag names and works generically.
+
+    Args:
+        body (Tag): A BeautifulSoup <body> tag.
+
+    Returns:
+        List[Tuple[int, str]]: List of (chunk_id, html_string).
+    """
+    if not body:
+        return []
+
+    chunks = []
+    chunk_id = 0
+
+    for element in body.children:
+        if isinstance(element, Tag):
+            html_chunk = str(element)
+            chunks.append((chunk_id, html_chunk))
+            chunk_id += 1
+
+    return chunks
 
 def extract_body_chunks(body):
     
@@ -314,13 +338,13 @@ def transform_new_website_chunk(body_doc, filename):
 
     ui_specific_instructions = load_ui_instructions("ui_instruction_set")
    
-    #text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=500)
-    #final_chunks = text_splitter.split_text(str(body_doc.page_content))
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=500)
+    final_chunks = text_splitter.split_text(str(body_doc.page_content))
 
     #semantic_blocks = extract_semantic_blocks(body_doc.page_content)
     #final_chunks = [Document(page_content=block) for block in semantic_blocks]
 
-    final_chunks = extract_body_chunks(body_doc)
+    #final_chunks = extract_body_chunks(body_doc)
     #final_chunks = [Document(page_content=block) for block in semantic_blocks]
 
 
@@ -337,8 +361,8 @@ def transform_new_website_chunk(body_doc, filename):
 
     transformed_chunks = []
     for chunk in final_chunks:
-        input_content = chunk.page_content if hasattr(chunk, "page_content") else str(chunk)
-        design_standard = retrieve_design_standard(input_content)
+        #input_content = chunk.page_content if hasattr(chunk, "page_content") else str(chunk)
+        design_standard = retrieve_design_standard(chunk)
         formatted_prompt = unified_prompt_template.format(
             design_standard=design_standard,
             ui_instructions=ui_specific_instructions,
