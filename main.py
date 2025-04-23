@@ -122,9 +122,8 @@ def generate_components(generate_component_command):
     for chunk in llm.stream(formatted_prompt):
         response += chunk.content
 
-    #cleaned_response = response.replace("```html", "").replace("```", "").strip()
+    cleaned_response = response.replace("```html", "").replace("```", "").strip()
     bootstrap_css = load_bootstrap_css()
-    cleaned_response = ""
 
     final_html = f"""
     <!DOCTYPE html>
@@ -158,47 +157,6 @@ def generate_components(generate_component_command):
         st.markdown("### Generated HTML")
         st.text_area("Generated HTML", final_html, height=500)
 
-headers_to_split_on = [
-    ("body", "body"),
-]
-
-
-def extract_semantic_blocks(html_str):
-    soup = BeautifulSoup(html_str, "html.parser")
-    semantic_blocks = []
-
-    # High-level semantic sections
-    primary_tags = ["header", "nav", "main", "section", "article", "footer", "form"]
-    for tag in primary_tags:
-        semantic_blocks.extend(soup.find_all(tag))
-
-    # Containers with meaningful IDs
-    id_keywords = ["band", "tour", "contact", "about", "services", "gallery"]
-    for div in soup.find_all("div", id=True):
-        if any(keyword in div["id"].lower() for keyword in id_keywords):
-            semantic_blocks.append(div)
-
-    # W3.CSS class-based containers
-    class_keywords = ["w3-top", "w3-container", "w3-content", "w3-padding", "w3-row", "w3-center"]
-    for div in soup.find_all("div", class_=True):
-        if any(cls for cls in div["class"] if any(kw in cls for kw in class_keywords)):
-            semantic_blocks.append(div)
-
-    # Wrap semantic elements in their parent if the parent is a meaningful container
-    final_blocks = []
-    seen = set()
-    for block in semantic_blocks:
-        # Get the highest parent that’s a <div> or <section> containing this block
-        parent = block
-        while parent.parent and parent.parent.name in ["div", "section"]:
-            parent = parent.parent
-        html_str = str(parent)
-        if html_str not in seen:
-            seen.add(html_str)
-            final_blocks.append(html_str)
-
-    return final_blocks
-
 
 def fetch_html_as_document(url):
     try:
@@ -220,24 +178,6 @@ def extract_body_only(doc: Document):
         return None
 
 
-def strip_outer_tags(html_block):
-    # Removes <html>, <head>, and <body> wrappers if present
-    html_block = re.sub(r"<\/?(html|head|body)[^>]*>", "", html_block, flags=re.IGNORECASE)
-    return html_block.strip()
-
-def deduplicate_navbar(chunks):
-    seen_nav = False
-    deduped_chunks = []
-    for chunk in chunks:
-        if "<nav" in chunk.page_content.lower():
-            if not seen_nav:
-                deduped_chunks.append(chunk)
-                seen_nav = True
-            # Skip additional navbars
-        else:
-            deduped_chunks.append(chunk)
-    return deduped_chunks
-
 def save_chunks_to_file(chunks, filename="semantic_chunks_debug.txt"):
     output_path = os.path.join(OUTPUT_DIR, filename)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -245,120 +185,82 @@ def save_chunks_to_file(chunks, filename="semantic_chunks_debug.txt"):
             f.write(f"\n\n--- Chunk {i+1} ---\n")
             f.write(str(chunk))
 
-# Fix overly nested containers
-def remove_redundant_containers(html):
-    return re.sub(r'(<div class="container">\s*){2,}', r'<div class="container">', html)
 
-def deduplicate_navbars(transformed_chunks):
-    seen = False
-    deduped = []
-    for chunk in transformed_chunks:
-        if "<nav" in chunk and not seen:
-            deduped.append(chunk)
-            seen = True
-        elif "<nav" not in chunk:
-            deduped.append(chunk)
-    return deduped
+def extract_body_chunks(html_content, max_chunk_size=3000):
+    soup = BeautifulSoup(html_content, 'html.parser')
+    body = soup.body
 
-
-
-
-# Tags that usually represent logical "chunks"
-LOGICAL_BLOCK_TAGS = {'header', 'nav', 'main', 'section', 'article', 'aside', 'footer', 'div'}
-
-def split_logically_ordered(body_tag: Tag):
-    logical_chunks = []
-    current_chunk = []
-
-    def flush_chunk():
-        if current_chunk:
-            combined_html = "".join(str(el) for el in current_chunk)
-            logical_chunks.append(combined_html)
-            current_chunk.clear()
-
-    for child in body_tag.children:
-        if isinstance(child, Tag):
-            if child.name in LOGICAL_BLOCK_TAGS:
-                flush_chunk()
-                logical_chunks.append(str(child))
-            else:
-                current_chunk.append(child)
-        else:
-            current_chunk.append(child)  # could be NavigableString
-
-    flush_chunk()
-    return logical_chunks
-
-def extract_body_chunks_new(body):
-    """
-    Extracts top-level chunks from the body using start and end tags of each direct child.
-    This method does not rely on specific tag names and works generically.
-
-    Args:
-        body (Tag): A BeautifulSoup <body> tag.
-
-    Returns:
-        List[Tuple[int, str]]: List of (chunk_id, html_string).
-    """
-    if not body:
+    if body is None:
         return []
 
     chunks = []
-    chunk_id = 0
+    current_chunk = ""
+    
+    def add_chunk(chunk):
+        clean_chunk = chunk.strip()
+        if clean_chunk:
+            chunks.append(clean_chunk)
+
+    def is_split_point(tag: Tag):
+        return tag.name in ['section', 'article', 'div'] and (
+            'container' in tag.get('class', []) or
+            'row' in tag.get('class', []) or
+            'main' in tag.get('class', []) or
+            'content' in tag.get('class', []) or
+            'contact' in tag.get('id', '') or
+            'about' in tag.get('id', '') or
+            'footer' in tag.get('id', '')
+        )
 
     for element in body.children:
         if isinstance(element, Tag):
-            html_chunk = str(element)
-            chunks.append((chunk_id, html_chunk))
-            chunk_id += 1
+            element_str = str(element)
 
+            # If this element is a semantic split point
+            if is_split_point(element) or len(current_chunk) + len(element_str) > max_chunk_size:
+                add_chunk(current_chunk)
+                current_chunk = element_str
+            else:
+                current_chunk += element_str
+
+    # Add remaining content
+    add_chunk(current_chunk)
     return chunks
 
-def extract_body_chunks(body):
-    
-    if not body:
+def extract_body_chunks_1(body_content):
+    if not body_content:
         return []
 
+    soup = BeautifulSoup(body_content, "html.parser")
+    body = soup.body
+
     chunks = []
-    chunk_id = 0
 
     for element in body.children:
-        if element.name in ["div", "header", "img", "footer","script"]:
+        if element.name in ["div", "header", "img", "footer"]:
             html_chunk = str(element)
-            chunks.append((chunk_id, html_chunk))
-            chunk_id += 1
+            chunks.append(html_chunk)
 
     return chunks
 
+def strip_outer_tags(html_block):
+    # Removes <html>, <head>, and <body> wrappers if present
+    html_block = re.sub(r"<\/?(html|head|body)[^>]*>", "", html_block, flags=re.IGNORECASE)
+    return html_block.strip()
 
 def transform_new_website_chunk(body_doc, filename):
 
-    if isinstance(body_doc, str):
-        body_doc = BeautifulSoup(body_doc, 'html.parser')
-
     ui_specific_instructions = load_ui_instructions("ui_instruction_set")
-   
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=500)
-    final_chunks = text_splitter.split_text(str(body_doc.page_content))
 
-    #semantic_blocks = extract_semantic_blocks(body_doc.page_content)
-    #final_chunks = [Document(page_content=block) for block in semantic_blocks]
+    use_RecursiveCharacterTextSplitter = 0
 
-    #final_chunks = extract_body_chunks(body_doc)
-    #final_chunks = [Document(page_content=block) for block in semantic_blocks]
-
-
-    save_chunks_to_file(final_chunks)
-
-
-    # semantic_splitter = HTMLSemanticPreservingSplitter(headers_to_split_on=headers_to_split_on)
-    # semantic_chunks = semantic_splitter.split_text(input_snippet)
-
+    if use_RecursiveCharacterTextSplitter:
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=500)
+        final_chunks = text_splitter.split_text(str(body_doc.page_content))
+    else:
+        final_chunks = extract_body_chunks(str(body_doc.page_content))
     
-    # text_splitter = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=30)
-    # for chunk in semantic_chunks:
-    #     final_chunks.extend(text_splitter.split_text(chunk.page_content))
-
+    save_chunks_to_file(final_chunks)
     transformed_chunks = []
     for chunk in final_chunks:
         #input_content = chunk.page_content if hasattr(chunk, "page_content") else str(chunk)
@@ -373,7 +275,7 @@ def transform_new_website_chunk(body_doc, filename):
         match = re.search(r"```(?:html)?\n(.*?)```", response, re.DOTALL | re.IGNORECASE)
         if match:
             response = match.group(1).strip()
-            
+
         response = strip_outer_tags(response)
         transformed_chunks.append(response)
  
