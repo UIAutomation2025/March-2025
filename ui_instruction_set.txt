@@ -1,0 +1,47 @@
+# UI Transformation Guidelines: W3.CSS to Bootstrap 5
+
+# General Rules:
+- Ensure all components are fully converted from W3.CSS to Bootstrap 5 equivalents.
+- Maintain consistent layout, spacing, and visual integrity as closely as possible.
+- Do not add any footer or copyright information.
+
+# Header:
+- Always preserve the <header> element and do not flatten or remove it during transformation.
+- Maintain all padding from the original <header>, and apply them using inline styles (e.g., style="padding:128px 16px;").
+- If content inside the <header> was center-aligned (e.g., using w3-center), apply Bootstrap's text-center class to the <header>.
+- Do not remove or move any child elements (<h1>, <p>, <button>) out of the <header>. Preserve hierarchy and semantics.
+
+# Typography:
+- For main headings like page titles, use <h1 class="display-4">.
+- Do not downgrade headings to <h3>, <h6>, or use overly minimal text classes unless the original intent was to reduce emphasis.
+
+# Navigation Bar:
+- If a navigation bar is detected, convert it to the following Bootstrap structure:
+  <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+
+# Images:
+- If an image src is found to be relative (e.g., /w3images/la.jpg), convert it to its full internet source:
+  Example: /w3images/la.jpg → https://www.w3schools.com/w3images/la.jpg
+
+# Buttons:
+- Convert all buttons to use Bootstrap 5 primary buttons with:
+  <a class="btn btn-primary"> or <button class="btn btn-primary">.
+- Do not preserve original background or border colors. Always use Bootstrap's default `btn-primary` style.
+- Remove any W3.CSS utility classes like w3-margin-top or w3-padding from buttons.
+- If the original button includes rounded styles (e.g., w3-round, w3-round-large, etc.), apply equivalent border-radius via inline styles.
+- Use `btn-lg` for large buttons when original had large padding or sizing.
+
+# Interactive Elements:
+- Retain the structure and functionality of checkboxes, radios, inputs, and form elements.
+- Ensure associated labels and accessibility attributes (like for= and aria-labels) are preserved.
+
+# Body Background Colour:
+- Always use a white background color for the <body> unless the original template clearly intends otherwise.
+
+#If script element is found give blank response .
+-For example :<script>function myFunction() {} </script> transform it to <script></script>
+
+
+
+
+
